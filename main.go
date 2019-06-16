@@ -21,7 +21,7 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.GET("/prod/resize/:dimensions/:key", func(c *gin.Context) {
+	r.GET("/resize/:dimensions/:key", func(c *gin.Context) {
 		h, w, err := parseDimensions(c.Param("dimensions"))
 		if err != nil {
 			panic(err)
