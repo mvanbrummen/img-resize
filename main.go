@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"image/jpeg"
 	"log"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,6 +22,14 @@ import (
 
 func main() {
 	r := gin.Default()
+
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, struct {
+			Status string
+		}{
+			"GREEN",
+		})
+	})
 
 	r.GET("/resize/:dimensions/:key", func(c *gin.Context) {
 		h, w, err := parseDimensions(c.Param("dimensions"))
@@ -56,7 +66,7 @@ func main() {
 		go func() {
 			b := new(bytes.Buffer)
 			err = jpeg.Encode(b, m, nil)
-			reader := bytes.NewReader(buf.Bytes())
+			reader := bytes.NewReader(b.Bytes())
 
 			uploader := s3manager.NewUploader(sess)
 			_, err = uploader.Upload(&s3manager.UploadInput{
@@ -76,7 +86,15 @@ func main() {
 		}
 	})
 
-	r.Run(":8080")
+	osPort := os.Getenv("PORT")
+	var port string
+	if osPort == "" {
+		port = ":8080"
+	} else {
+		port = ":" + osPort
+	}
+
+	r.Run(port)
 }
 
 func parseDimensions(s string) (int, int, error) {
