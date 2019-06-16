@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"image/jpeg"
+	"log"
 	"strconv"
 	"strings"
 
@@ -24,6 +26,8 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
+		log.Printf("resizing to %dx%d\n", h, w)
 
 		key := c.Param("key")
 
@@ -49,6 +53,22 @@ func main() {
 
 		m := resize.Resize(uint(w), uint(h), image, resize.Lanczos3)
 
+		go func() {
+			b := new(bytes.Buffer)
+			err = jpeg.Encode(b, m, nil)
+			reader := bytes.NewReader(buf.Bytes())
+
+			uploader := s3manager.NewUploader(sess)
+			_, err = uploader.Upload(&s3manager.UploadInput{
+				Bucket: aws.String("dasless-images"),
+				Key:    aws.String(fmt.Sprintf("/%dx%d/%s", h, w, key)),
+				Body:   reader,
+			})
+			if err != nil {
+				log.Println(err)
+			}
+		}()
+
 		c.Header("Content-Type", "image/jpeg")
 		err = jpeg.Encode(c.Writer, m, nil)
 		if err != nil {
@@ -70,7 +90,7 @@ func parseDimensions(s string) (int, int, error) {
 		return 0, 0, err
 	}
 
-	j, err := strconv.Atoi(vars[0])
+	j, err := strconv.Atoi(vars[1])
 	if err != nil {
 		return 0, 0, err
 	}
